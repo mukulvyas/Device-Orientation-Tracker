@@ -13,25 +13,68 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.mc_assignment_sensor.Screen.GraphScreen
+import com.example.mc_assignment_sensor.Screen.LineChart
+import com.example.mc_assignment_sensor.Screen.entriesToLineData
 import com.example.mc_assignment_sensor.database.AppDatabase
 import com.example.mc_assignment_sensor.database.Orientation
+import com.github.mikephil.charting.data.LineData
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
+import android.Manifest
+import android.annotation.SuppressLint
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class OrientationActivity : ComponentActivity(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var orientationSensor: Sensor? = null
     var lastUpdate: Long = 0
     var entries: List<Orientation>? = null
+    var chartData by mutableStateOf(LineData())
+    private val REQUEST_WRITE_STORAGE = 112
+
+
+
     //private var idCounter = 0
     var orientation by mutableStateOf<Orientation?>(null)
 
+    fun checkPermission() {
+        val permission = ContextCompat.checkSelfPermission(this,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE)
+
+        if (permission != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(this,
+                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                REQUEST_WRITE_STORAGE)
+        }
+    }
+
+    @Deprecated("Deprecated in Java")
+    @SuppressLint("MissingSuperCall")
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
+        when (requestCode) {
+            REQUEST_WRITE_STORAGE -> {
+                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    // Permission granted
+                } else {
+                    // Permission denied
+                }
+                return
+            }
+            else -> {
+                // Ignore all other requests
+            }
+        }
+    }
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         sensorManager = getSystemService(SENSOR_SERVICE) as SensorManager
         orientationSensor = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+
+        checkPermission()
 
         runBlocking {
             entries = withContext(Dispatchers.IO) {
@@ -88,8 +131,11 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
                     Log.d("DatabaseInsertROW", "Inserted new orientation entry with rowId: $rowId")
 
                     val entries = orientationDao.getAll()
-                    Log.d("DatabaseCheck", "Number of entries in the database: $entries")
+                    Log.d("DatabaseCheck", "Number of entries in the database: ${entries.size}")
                     //GraphScreen(entries, event.values[0], event.values[1], event.values[2])
+
+                    //chartData = entriesToLineData(entries) { it.pitch }
+
 
                 }
             }
@@ -104,7 +150,11 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
         val yaw = orientation?.yaw ?: 0f
 
         GraphScreen(entries, pitch, roll, yaw)
+        //LineChart(chartData, "Pitch")
+
     }
+
+
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
             // Handle accuracy changes
         }
