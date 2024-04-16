@@ -109,4 +109,6 @@ dependencies {
     implementation("androidx.room:room-ktx:2.6.1")
 
 
+    implementation ("com.github.PhilJay:MPAndroidChart:v3.1.0")
+
 }

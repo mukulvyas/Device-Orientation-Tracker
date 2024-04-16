@@ -7,7 +7,12 @@ import android.hardware.SensorManager
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
-import com.example.mc_assignment_sensor.Screen.graphScreen
+import androidx.activity.compose.setContent
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import com.example.mc_assignment_sensor.Screen.GraphScreen
 import com.example.mc_assignment_sensor.database.AppDatabase
 import com.example.mc_assignment_sensor.database.Orientation
 import kotlinx.coroutines.Dispatchers
@@ -15,13 +20,13 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 
-
 class OrientationActivity : ComponentActivity(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
     private var orientationSensor: Sensor? = null
     var lastUpdate: Long = 0
     var entries: List<Orientation>? = null
     //private var idCounter = 0
+    var orientation by mutableStateOf<Orientation?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -35,6 +40,12 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
                 allEntries
             }
            // graphScreen(this@OrientationActivity)
+        }
+
+        setContent {
+            entries?.let {
+                DisplayGraph(it) // Replace 0f with actual pitch, roll and yaw values
+            }
         }
 
     }
@@ -61,7 +72,7 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
     if (currentTime - lastUpdate > 1000) {
         lastUpdate = currentTime
         event.let {
-            val orientation = Orientation(
+             orientation = Orientation(
                 timestamp = lastUpdate,
                 pitch = event.values[0],
                 roll = event.values[1],
@@ -71,20 +82,29 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
             runBlocking {
                 launch(Dispatchers.IO) {
                     val orientationDao = AppDatabase.getDatabase(this@OrientationActivity).orientationDao()
-                    orientationDao.insert(orientation)
+                    orientationDao.insert(orientation!!)
                     Log.d("DatabaseInsert", "Inserted new orientation entry: $orientation")
-                    val rowId = orientationDao.insert(orientation)
+                    val rowId = orientationDao.insert(orientation!!)
                     Log.d("DatabaseInsertROW", "Inserted new orientation entry with rowId: $rowId")
 
                     val entries = orientationDao.getAll()
                     Log.d("DatabaseCheck", "Number of entries in the database: $entries")
-                    graphScreen(entries, event.values[0], event.values[1], event.values[2])
+                    //GraphScreen(entries, event.values[0], event.values[1], event.values[2])
 
                 }
             }
         }
     }
 }
+
+    @Composable
+    fun DisplayGraph(entries: List<Orientation>) {
+        val pitch = orientation?.pitch ?: 0f
+        val roll = orientation?.roll ?: 0f
+        val yaw = orientation?.yaw ?: 0f
+
+        GraphScreen(entries, pitch, roll, yaw)
+    }
         override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {
             // Handle accuracy changes
         }
