@@ -13,8 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.example.mc_assignment_sensor.Screen.GraphScreen
-import com.example.mc_assignment_sensor.Screen.LineChart
-import com.example.mc_assignment_sensor.Screen.entriesToLineData
 import com.example.mc_assignment_sensor.database.AppDatabase
 import com.example.mc_assignment_sensor.database.Orientation
 import com.github.mikephil.charting.data.LineData
@@ -27,6 +25,7 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CoroutineScope
 
 class OrientationActivity : ComponentActivity(), SensorEventListener {
     private lateinit var sensorManager: SensorManager
@@ -36,7 +35,7 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
     var chartData by mutableStateOf(LineData())
     private val REQUEST_WRITE_STORAGE = 112
 
-
+    var entriesState by mutableStateOf<List<Orientation>?>(null)
 
     //private var idCounter = 0
     var orientation by mutableStateOf<Orientation?>(null)
@@ -110,46 +109,100 @@ class OrientationActivity : ComponentActivity(), SensorEventListener {
     }
     private var idCounter = 0
 
-    override fun onSensorChanged(event: SensorEvent) {
+   override fun onSensorChanged(event: SensorEvent) {
     val currentTime = System.currentTimeMillis()
     if (currentTime - lastUpdate > 1000) {
         lastUpdate = currentTime
         event.let {
-             orientation = Orientation(
+            orientation = Orientation(
                 timestamp = lastUpdate,
                 pitch = event.values[0],
                 roll = event.values[1],
                 yaw = event.values[2]
             )
 
-            runBlocking {
-                launch(Dispatchers.IO) {
-                    val orientationDao = AppDatabase.getDatabase(this@OrientationActivity).orientationDao()
-                    orientationDao.insert(orientation!!)
-                    Log.d("DatabaseInsert", "Inserted new orientation entry: $orientation")
-                    val rowId = orientationDao.insert(orientation!!)
-                    Log.d("DatabaseInsertROW", "Inserted new orientation entry with rowId: $rowId")
+            // Launch a new coroutine on IO dispatcher
+            CoroutineScope(Dispatchers.IO).launch {
+                val orientationDao = AppDatabase.getDatabase(this@OrientationActivity).orientationDao()
+                orientationDao.insert(orientation!!)
+                Log.d("DatabaseInsert", "Inserted new orientation entry: $orientation")
 
-                    val entries = orientationDao.getAll()
-                    Log.d("DatabaseCheck", "Number of entries in the database: ${entries.size}")
-                    //GraphScreen(entries, event.values[0], event.values[1], event.values[2])
-
-                    //chartData = entriesToLineData(entries) { it.pitch }
-
-
+                // Observe the database for changes
+                orientationDao.getAllFlow().collect { newEntries ->
+                    withContext(Dispatchers.Main) {
+                        Log.d("DatabaseCheck", "Number of entries in the database: ${newEntries.size}")
+                        // Update your UI here
+                        entries = newEntries
+                        entriesState = newEntries
+                        //DisplayGraph(entries!!)
+                    }
                 }
             }
         }
     }
 }
 
+//    override fun onSensorChanged(event: SensorEvent) {
+//    val currentTime = System.currentTimeMillis()
+//    if (currentTime - lastUpdate > 1000) {
+//        lastUpdate = currentTime
+//        event.let {
+//             orientation = Orientation(
+//                timestamp = lastUpdate,
+//                pitch = event.values[0],
+//                roll = event.values[1],
+//                yaw = event.values[2]
+//            )
+//            CoroutineScope(Dispatchers.IO).launch {
+//                val orientationDao = AppDatabase.getDatabase(this@OrientationActivity).orientationDao()
+//                orientationDao.insert(orientation!!)
+//                Log.d("DatabaseInsert", "Inserted new orientation entry: $orientation")
+//
+//                // Observe the database for changes
+//                orientationDao.getAllFlow().collect { entries ->
+//                    withContext(Dispatchers.Main) {
+//                        Log.d("DatabaseCheck", "Number of entries in the database: ${entries.size}")
+//                        // Update your UI here
+//                    }
+//                }
+//            }
+////
+////            runBlocking {
+////                launch(Dispatchers.IO) {
+////                    val orientationDao = AppDatabase.getDatabase(this@OrientationActivity).orientationDao()
+////                    orientationDao.insert(orientation!!)
+////                    Log.d("DatabaseInsert", "Inserted new orientation entry: $orientation")
+////                    val rowId = orientationDao.insert(orientation!!)
+////                    Log.d("DatabaseInsertROW", "Inserted new orientation entry with rowId: $rowId")
+////
+////                    val entries = orientationDao.getAll()
+////                    Log.d("DatabaseCheck", "Number of entries in the database: ${entries.size}")
+////                    //GraphScreen(entries, event.values[0], event.values[1], event.values[2])
+//////                    orientationDao.getAllFlow().collect { entries ->
+//////                        Log.d("DatabaseCheck", "Number of entries in the database: ${entries.size}")
+//////                        // Update your UI here
+//////                    }
+////                    //chartData = entriesToLineData(entries) { it.pitch }
+////
+////
+////                }
+////            }
+//        }
+//    }
+//}
+
     @Composable
     fun DisplayGraph(entries: List<Orientation>) {
         val pitch = orientation?.pitch ?: 0f
         val roll = orientation?.roll ?: 0f
         val yaw = orientation?.yaw ?: 0f
+//        Log.d("DatabaseCheckMain", "Number of entries in the in function: ${entries.size}")
 
-        GraphScreen(entries, pitch, roll, yaw)
+        entriesState?.let {it->
+            Log.d("DatabaseCheckMain", "Number of entries in the in function: $it")
+            GraphScreen(it, pitch, roll, yaw)
+        }
+//        GraphScreen(entries, pitch, roll, yaw)
         //LineChart(chartData, "Pitch")
 
     }
