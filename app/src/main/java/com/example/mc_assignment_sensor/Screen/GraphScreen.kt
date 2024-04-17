@@ -2,6 +2,8 @@ package com.example.mc_assignment_sensor.Screen
 
 import android.annotation.SuppressLint
 import android.graphics.Color
+import android.os.Build
+import android.os.Environment
 import android.text.Editable.Factory
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.data.LineData
@@ -63,24 +65,59 @@ fun GraphScreen(entries: List<Orientation>, pitch: Float, roll: Float, yaw: Floa
             rollData.value = entriesToLineData(lastEntries, { it.roll }, color = Color.GREEN)
             yawData.value = entriesToLineData(lastEntries, { it.yaw }, color = Color.BLUE)
         }
-    }
-    if (entriesString != null) {
-        val file = File(context.filesDir, "entries.txt")
 
-        try {
-            FileOutputStream(file).use { outputStream ->
-                OutputStreamWriter(outputStream).use { writer ->
-                    writer.write(entriesString)
-                }
+//        if (entriesString != null) {
+//            val file: File = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+//                File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "entries.txt")
+//            } else {
+//                File(
+//                    Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+//                    "entries.txt"
+//                )
+//            }
+//
+//            try {
+//                FileOutputStream(file).use { outputStream ->
+//                    OutputStreamWriter(outputStream).use { writer ->
+//                        writer.write(entriesString)
+//                    }
+//                }
+//                if (file.exists()) {
+//                    Log.d("File Writing", "File written successfully at ${file.absolutePath}")
+//                }
+//            } catch (e: Exception) {
+//                // Log the exception
+//                Log.e("File Writing Error", "Error writing to file", e)
+//            }
+//        } else {
+//            Log.e("File Writing Error", "entriesString is null")
+//        }
+//    }
+
+        if (entriesString != null) {
+            val file: File = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                File(context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS), "entries.txt")
+            } else {
+                File(File(Environment.getExternalStorageDirectory(), Environment.DIRECTORY_DOWNLOADS), "entries.txt")
             }
-        } catch (e: Exception) {
-            // Log the exception
-            Log.e("File Writing Error", "Error writing to file", e)
-        }
-    } else {
-        Log.e("File Writing Error", "entriesString is null")
-    }
 
+            try {
+                FileOutputStream(file).use { outputStream ->
+                    OutputStreamWriter(outputStream).use { writer ->
+                        writer.write(entriesString)
+                    }
+                }
+                if (file.exists()) {
+                    Log.d("File Writing", "File written successfully at ${file.absolutePath}")
+                }
+            } catch (e: Exception) {
+                // Log the exception
+                Log.e("File Writing Error", "Error writing to file", e)
+            }
+        } else {
+            Log.e("File Writing Error", "entriesString is null")
+        }
+    }
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
